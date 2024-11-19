@@ -11,10 +11,10 @@ void Scene::addSphere(const Vector3 &center, float radius, const Color &color) {
 Color Scene::traceRay(const Ray &ray) const {
     for (auto &obj : objects) {
         if (obj->doesIntersect(ray)) {
-            return obj->getColor();
+            return {1.0f, 1.0f, 1.0f};
         }
     }
-    return {0, 0, 0};
+    return {0.0f, 0.0f, 0.0f};
 }
 
 void Scene::loadFromJson(const std::string &filename) {

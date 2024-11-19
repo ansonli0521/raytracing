@@ -22,9 +22,11 @@ void Camera::renderScene(const Scene &scene, const std::string &file) const {
             Ray ray(position, dir);
             Color col = scene.traceRay(ray);
 
-            ofs.put(static_cast<unsigned char>(std::clamp(col.r * 255.0f, 0.0f, 255.0f)));
-            ofs.put(static_cast<unsigned char>(std::clamp(col.g * 255.0f, 0.0f, 255.0f)));
-            ofs.put(static_cast<unsigned char>(std::clamp(col.b * 255.0f, 0.0f, 255.0f)));
+            unsigned char r = static_cast<unsigned char>(col.r * 255);
+            unsigned char g = static_cast<unsigned char>(col.g * 255);
+            unsigned char b = static_cast<unsigned char>(col.b * 255);
+
+            ofs.put(r).put(g).put(b);
         }
     }
     ofs.close();
