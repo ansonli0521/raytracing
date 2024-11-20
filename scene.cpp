@@ -5,14 +5,26 @@
 using json = nlohmann::json;
 
 void Scene::addSphere(const Vector3 &center, float radius, const Color &color) {
-    objects.emplace_back(new Sphere(center, radius, color));
+    spheres.emplace_back(new Sphere(center, radius, color));
+}
+
+void Scene::addTriangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2, const Color &color) {
+    triangles.emplace_back(new Triangle(v0, v1, v2, color));
+}
+
+void Scene::addCylinder(const Vector3 &center, const Vector3 &axis, float radius, float height, const Color &color) {
+    cylinders.emplace_back(new Cylinder(center, axis, radius, height, color));
 }
 
 Color Scene::traceRay(const Ray &ray) const {
-    for (auto &obj : objects) {
-        if (obj->doesIntersect(ray)) {
-            return {1.0f, 1.0f, 1.0f};
-        }
+    for (auto &sphere : spheres) {
+        if (sphere->doesIntersect(ray)) return sphere->getColor();
+    }
+    for (auto &triangle : triangles) {
+        if (triangle->doesIntersect(ray)) return triangle->getColor();
+    }
+    for (auto &cylinder : cylinders) {
+        if (cylinder->doesIntersect(ray)) return cylinder->getColor();
     }
     return {0.0f, 0.0f, 0.0f};
 }
@@ -39,6 +51,19 @@ void Scene::loadFromJson(const std::string &filename) {
             float radius = object["radius"];
             Color color = {object["color"][0], object["color"][1], object["color"][2]};
             addSphere(center, radius, color);
+        } else if (type == "triangle") {
+            Vector3 v0 = {object["v0"][0], object["v0"][1], object["v0"][2]};
+            Vector3 v1 = {object["v1"][0], object["v1"][1], object["v1"][2]};
+            Vector3 v2 = {object["v2"][0], object["v2"][1], object["v2"][2]};
+            Color color = {object["color"][0], object["color"][1], object["color"][2]};
+            addTriangle(v0, v1, v2, color);
+        } else if (type == "cylinder") {
+            Vector3 center = {object["center"][0], object["center"][1], object["center"][2]};
+            Vector3 axis = {object["axis"][0], object["axis"][1], object["axis"][2]};
+            float radius = object["radius"];
+            float height = object["height"];
+            Color color = {object["color"][0], object["color"][1], object["color"][2]};
+            addCylinder(center, axis, radius, height, color);
         }
     }
 }

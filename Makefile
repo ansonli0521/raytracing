@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -Wall -Wextra -std=c++17 -O3 -I.
 TARGET = raytracer
-SRC = raytracer.cpp camera.cpp scene.cpp sphere.cpp
+SRC = raytracer.cpp camera.cpp scene.cpp sphere.cpp triangle.cpp cylinder.cpp
 OBJ = $(SRC:.cpp=.o)
 
 all: $(TARGET)
