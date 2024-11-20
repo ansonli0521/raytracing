@@ -20,6 +20,11 @@ public:
         return Vector3(x - other.x, y - other.y, z - other.z);
     }
 
+    // Unary negation
+    Vector3 operator-() const {
+        return Vector3(-x, -y, -z);
+    }
+
     // Dot product
     float dot(const Vector3 &other) const {
         return x * other.x + y * other.y + z * other.z;

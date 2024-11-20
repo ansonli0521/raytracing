@@ -1,6 +1,7 @@
 #include "scene.h"
 #include "json.hpp"
 #include <fstream>
+#include <limits>
 
 using json = nlohmann::json;
 
@@ -36,6 +37,85 @@ bool Scene::traceRay(const Ray &ray) const {
     }
 
     return false;
+}
+
+Color Scene::traceRayWithShading(const Ray& ray) const {
+    float closestDistance = std::numeric_limits<float>::max();
+    const Sphere* closestSphere = nullptr;
+    const Triangle* closestTriangle = nullptr;
+    const Cylinder* closestCylinder = nullptr;
+    Vector3 hitPoint, normal;
+
+    for (const auto& sphere : spheres) {
+        float t = sphere->getIntersectionDistance(ray);
+        if (t > 0 && t < closestDistance) {
+            closestDistance = t;
+            closestSphere = sphere;
+            closestTriangle = nullptr;
+            closestCylinder = nullptr;
+            hitPoint = ray.origin + ray.direction * t;
+            normal = (hitPoint - sphere->getCenter()).normalize();
+        }
+    }
+
+    for (const auto& triangle : triangles) {
+        float t = triangle->getIntersectionDistance(ray);
+        if (t > 0 && t < closestDistance) {
+            closestDistance = t;
+            closestSphere = nullptr;
+            closestTriangle = triangle;
+            closestCylinder = nullptr;
+            hitPoint = ray.origin + ray.direction * t;
+            normal = triangle->getNormal(hitPoint);
+        }
+    }
+
+    for (const auto& cylinder : cylinders) {
+        float t = cylinder->getIntersectionDistance(ray);
+        if (t > 0 && t < closestDistance) {
+            closestDistance = t;
+            closestSphere = nullptr;
+            closestTriangle = nullptr;
+            closestCylinder = cylinder;
+            hitPoint = ray.origin + ray.direction * t;
+            normal = cylinder->getNormal(hitPoint);
+        }
+    }
+
+    if (closestDistance == std::numeric_limits<float>::max()) {
+        return {0.0f, 0.0f, 0.0f}; // Background color
+    }
+
+    Color finalColor = {0.0f, 0.0f, 0.0f};
+    Vector3 viewDir = -ray.direction.normalize();
+
+    // Determine the object's color
+    Color objectColor;
+    if (closestSphere) {
+        objectColor = closestSphere->getColor();
+    } else if (closestTriangle) {
+        objectColor = closestTriangle->getColor();
+    } else if (closestCylinder) {
+        objectColor = closestCylinder->getColor();
+    }
+
+    for (const auto& light : lights) {
+        Vector3 lightDir = (light.position - hitPoint).normalize();
+        float diff = std::max(0.0f, normal.dot(lightDir));
+        Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
+        float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
+
+        Color diffuse = objectColor * diff;
+        Color specular = light.color * spec * light.intensity;
+
+        finalColor = finalColor + diffuse * light.intensity + specular;
+    }
+
+    return finalColor;
+}
+
+void Scene::addLight(const Vector3 &position, float intensity, const Color &color) {
+    lights.push_back({position, intensity, color});
 }
 
 void Scene::loadFromJson(const std::string &filename) {
@@ -74,5 +154,12 @@ void Scene::loadFromJson(const std::string &filename) {
             Color color = {object["color"][0], object["color"][1], object["color"][2]};
             addCylinder(center, axis, radius, height, color);
         }
+    }
+
+    for (const auto &light : sceneJson["lights"]) {
+        Vector3 position = {light["position"][0], light["position"][1], light["position"][2]};
+        float intensity = light["intensity"];
+        Color color = {light["color"][0], light["color"][1], light["color"][2]};
+        addLight(position, intensity, color);
     }
 }

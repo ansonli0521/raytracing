@@ -1,24 +1,31 @@
 {
     "camera": {
-        "position": [0, 0, 2],
-        "look_at": [0, 0, -6],
+        "position": [0, 1, 4],
+        "look_at": [0, 0, -1],
         "up": [0, 1, 0],
         "fov": 70,
         "width": 800,
         "height": 600
     },
+    "lights": [
+        {
+            "position": [5, 5, 5],
+            "intensity": 1.0,
+            "color": [1, 1, 1]
+        }
+    ],
     "objects": [
         {
             "type": "sphere",
-            "center": [0, 0, -5],
+            "center": [0, 0, -3],
             "radius": 1.0,
             "color": [1, 0, 0]
         },
         {
             "type": "triangle",
-            "v0": [-1, -1, -6],
-            "v1": [1, -1, -6],
-            "v2": [0, 1, -6],
+            "v0": [-1, -1, -5],
+            "v1": [1, -1, -5],
+            "v2": [0, 1, -5],
             "color": [0, 1, 0]
         },
         {

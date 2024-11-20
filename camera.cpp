@@ -7,7 +7,7 @@
 Camera::Camera(Vector3 pos, Vector3 dir, Vector3 up, float fov, int w, int h)
     : position(pos), forward(dir.normalize()), up(up.normalize()), fov(fov), width(w), height(h) {}
 
-void Camera::renderScene(const Scene &scene, const std::string &filename) const {
+void Camera::renderScene(const Scene& scene, const std::string& filename, const std::string& renderMode) const {
     std::ofstream outFile(filename);
     if (!outFile) {
         throw std::runtime_error("Failed to open file: " + filename);
@@ -22,11 +22,17 @@ void Camera::renderScene(const Scene &scene, const std::string &filename) const 
 
             Vector3 rayDirection = (forward + u * right() + v * up).normalize();
             Ray ray(position, rayDirection);
-
-            if (scene.traceRay(ray)) {
-                outFile << "255 0 0 ";
-            } else {
-                outFile << "0 0 0 ";
+            if (renderMode == "binary") {
+                if (scene.traceRay(ray)) {
+                    outFile << "255 0 0 ";
+                } else {
+                    outFile << "0 0 0 ";
+                }
+            } else if (renderMode == "phong") {
+                Color color = scene.traceRayWithShading(ray);
+                outFile << static_cast<int>(color.r * 255) << " "
+                        << static_cast<int>(color.g * 255) << " "
+                        << static_cast<int>(color.b * 255) << " ";
             }
         }
         outFile << "\n";

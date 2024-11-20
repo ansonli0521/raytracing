@@ -11,7 +11,7 @@ class Scene;  // Forward declaration
 class Camera {
 public:
     Camera(Vector3 position, Vector3 direction, Vector3 up, float fov, int width, int height);
-    void renderScene(const Scene &scene, const std::string &outputFilename) const;
+    void renderScene(const Scene& scene, const std::string& filename, const std::string& renderMode) const;
 
 private:
     Vector3 position, forward, up;

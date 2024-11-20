@@ -9,6 +9,8 @@ class Cylinder {
 public:
     Cylinder(const Vector3 &c, const Vector3 &a, float r, float h, const Color &col);
     bool doesIntersect(const Ray &ray) const;
+    float getIntersectionDistance(const Ray &ray) const;
+    Vector3 getNormal(const Vector3 &point) const;
     Color getColor() const;
 
 private:
