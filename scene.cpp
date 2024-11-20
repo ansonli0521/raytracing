@@ -16,17 +16,26 @@ void Scene::addCylinder(const Vector3 &center, const Vector3 &axis, float radius
     cylinders.emplace_back(new Cylinder(center, axis, radius, height, color));
 }
 
-Color Scene::traceRay(const Ray &ray) const {
-    for (auto &sphere : spheres) {
-        if (sphere->doesIntersect(ray)) return sphere->getColor();
+bool Scene::traceRay(const Ray &ray) const {
+    for (const auto &sphere : spheres) {
+        if (sphere->doesIntersect(ray)) {
+            return true;
+        }
     }
-    for (auto &triangle : triangles) {
-        if (triangle->doesIntersect(ray)) return triangle->getColor();
+
+    for (const auto &triangle : triangles) {
+        if (triangle->doesIntersect(ray)) {
+            return true;
+        }
     }
-    for (auto &cylinder : cylinders) {
-        if (cylinder->doesIntersect(ray)) return cylinder->getColor();
+
+    for (const auto &cylinder : cylinders) {
+        if (cylinder->doesIntersect(ray)) {
+            return true;
+        }
     }
-    return {0.0f, 0.0f, 0.0f};
+
+    return false;
 }
 
 void Scene::loadFromJson(const std::string &filename) {

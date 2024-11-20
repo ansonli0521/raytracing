@@ -7,29 +7,32 @@
 Camera::Camera(Vector3 pos, Vector3 dir, Vector3 up, float fov, int w, int h)
     : position(pos), forward(dir.normalize()), up(up.normalize()), fov(fov), width(w), height(h) {}
 
-void Camera::renderScene(const Scene &scene, const std::string &file) const {
-    std::ofstream ofs(file, std::ios::binary);
-    ofs << "P6\n" << width << " " << height << "\n255\n";
-    float aspectRatio = static_cast<float>(width) / height;
-    float scale = std::tan(fov * 0.5 * M_PI / 180.0);
-
-    for (int j = 0; j < height; ++j) {
-        for (int i = 0; i < width; ++i) {
-            float x = (2 * (i + 0.5) / width - 1) * aspectRatio * scale;
-            float y = (1 - 2 * (j + 0.5) / height) * scale;
-
-            Vector3 dir = (forward + (right() * x) + (up * y)).normalize();
-            Ray ray(position, dir);
-            Color col = scene.traceRay(ray);
-
-            unsigned char r = static_cast<unsigned char>(col.r * 255);
-            unsigned char g = static_cast<unsigned char>(col.g * 255);
-            unsigned char b = static_cast<unsigned char>(col.b * 255);
-
-            ofs.put(r).put(g).put(b);
-        }
+void Camera::renderScene(const Scene &scene, const std::string &filename) const {
+    std::ofstream outFile(filename);
+    if (!outFile) {
+        throw std::runtime_error("Failed to open file: " + filename);
     }
-    ofs.close();
+
+    outFile << "P3\n" << width << " " << height << "\n255\n";
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            float u = (2.0f * x / (width - 1)) - 1.0f;
+            float v = (2.0f * y / (height - 1)) - 1.0f;
+
+            Vector3 rayDirection = (forward + u * right() + v * up).normalize();
+            Ray ray(position, rayDirection);
+
+            if (scene.traceRay(ray)) {
+                outFile << "255 0 0 ";
+            } else {
+                outFile << "0 0 0 ";
+            }
+        }
+        outFile << "\n";
+    }
+
+    outFile.close();
 }
 
 Vector3 Camera::right() const {

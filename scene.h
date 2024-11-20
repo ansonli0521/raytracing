@@ -15,7 +15,7 @@ public:
     void addSphere(const Vector3 &center, float radius, const Color &color);
     void addTriangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2, const Color &color);
     void addCylinder(const Vector3 &center, const Vector3 &axis, float radius, float height, const Color &color);
-    Color traceRay(const Ray &ray) const;
+    bool traceRay(const Ray &ray) const;
     void loadFromJson(const std::string &filename);
     Camera* getCamera() const { return camera; }
 

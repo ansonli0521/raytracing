@@ -5,6 +5,10 @@ int main() {
     Scene scene;
     scene.loadFromJson("scene.json");
 
-    scene.getCamera()->renderScene(scene, "output.ppm");
+    Camera *camera = scene.getCamera();
+    if (camera) {
+        camera->renderScene(scene, "output_binary.ppm");
+    }
+
     return 0;
 }
