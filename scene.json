@@ -19,21 +19,30 @@
             "type": "sphere",
             "center": [-1.5, 0.5, -7.5],
             "radius": 1.5,
-            "color": [1, 0, 0]
+            "color": [1, 0, 0],
+            "reflectivity": 0.5,
+            "transparency": 0.3,
+            "refractive_index": 1.5
         },
         {
             "type": "triangle",
             "v0": [-5, -5, -9],
             "v1": [5, -5, -9],
             "v2": [-5, 5, -9],
-            "color": [0, 1, 0]
+            "color": [0, 1, 0],
+            "reflectivity": 0.2,
+            "transparency": 0.0,
+            "refractive_index": 1.0
         },
         {
             "type": "triangle",
             "v0": [5, -5, -9],
             "v1": [5, 5, -9],
             "v2": [-5, 5, -9],
-            "color": [0, 1, 0]
+            "color": [0, 1, 0],
+            "reflectivity": 0.2,
+            "transparency": 0.0,
+            "refractive_index": 1.0
         },
         {
             "type": "cylinder",
@@ -41,7 +50,10 @@
             "axis": [0, 0, 1],
             "radius": 1,
             "height": 4.0,
-            "color": [0, 0, 1]
+            "color": [0, 0, 1],
+            "reflectivity": 0.3,
+            "transparency": 0.5,
+            "refractive_index": 1.3
         }
     ]
 }

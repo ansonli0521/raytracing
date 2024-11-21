@@ -1,8 +1,8 @@
 #include "cylinder.h"
 #include <cmath>
 
-Cylinder::Cylinder(const Vector3 &c, const Vector3 &a, float r, float h, const Color &col)
-    : center(c), axis(a.normalize()), radius(r), height(h), color(col) {}
+Cylinder::Cylinder(const Vector3 &c, const Vector3 &a, float r, float h, const Color &col, float reflectivity, float transparency, float refractiveIndex)
+    : center(c), axis(a.normalize()), radius(r), height(h), color(col), reflectivity(reflectivity), transparency(transparency), refractiveIndex(refractiveIndex) {}
 
 bool Cylinder::doesIntersect(const Ray &ray) const {
     Vector3 oc = ray.origin - center;
@@ -123,4 +123,16 @@ Vector3 Cylinder::getNormal(const Vector3 &point) const {
 
 Color Cylinder::getColor() const {
     return color;
+}
+
+float Cylinder::getReflectivity() const {
+    return reflectivity;
+}
+
+float Cylinder::getTransparency() const {
+    return transparency;
+}
+
+float Cylinder::getRefractiveIndex() const {
+    return refractiveIndex;
 }

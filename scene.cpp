@@ -2,19 +2,20 @@
 #include "json.hpp"
 #include <fstream>
 #include <limits>
+#include <cmath>
 
 using json = nlohmann::json;
 
-void Scene::addSphere(const Vector3 &center, float radius, const Color &color) {
-    spheres.emplace_back(new Sphere(center, radius, color));
+void Scene::addSphere(const Vector3 &center, float radius, const Color &color, float reflectivity, float transparency, float refractiveIndex) {
+    spheres.emplace_back(new Sphere(center, radius, color, reflectivity, transparency, refractiveIndex));
 }
 
-void Scene::addTriangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2, const Color &color) {
-    triangles.emplace_back(new Triangle(v0, v1, v2, color));
+void Scene::addTriangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2, const Color &color, float reflectivity, float transparency, float refractiveIndex) {
+    triangles.emplace_back(new Triangle(v0, v1, v2, color, reflectivity, transparency, refractiveIndex));
 }
 
-void Scene::addCylinder(const Vector3 &center, const Vector3 &axis, float radius, float height, const Color &color) {
-    cylinders.emplace_back(new Cylinder(center, axis, radius, height, color));
+void Scene::addCylinder(const Vector3 &center, const Vector3 &axis, float radius, float height, const Color &color, float reflectivity, float transparency, float refractiveIndex) {
+    cylinders.emplace_back(new Cylinder(center, axis, radius, height, color, reflectivity, transparency, refractiveIndex));
 }
 
 bool Scene::traceRay(const Ray &ray) const {
@@ -39,13 +40,18 @@ bool Scene::traceRay(const Ray &ray) const {
     return false;
 }
 
-Color Scene::traceRayWithShading(const Ray& ray) const {
+Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
+    if (depth <= 0) {
+        return {0.0f, 0.0f, 0.0f}; // Stop recursion
+    }
+
     float closestDistance = std::numeric_limits<float>::max();
     const Sphere* closestSphere = nullptr;
     const Triangle* closestTriangle = nullptr;
     const Cylinder* closestCylinder = nullptr;
     Vector3 hitPoint, normal;
 
+    // Find the closest intersection
     for (const auto& sphere : spheres) {
         float t = sphere->getIntersectionDistance(ray);
         if (t > 0 && t < closestDistance) {
@@ -86,23 +92,37 @@ Color Scene::traceRayWithShading(const Ray& ray) const {
         return {0.0f, 0.0f, 0.0f}; // Background color
     }
 
-    Color finalColor = {0.0f, 0.0f, 0.0f};
-    Vector3 viewDir = -ray.direction.normalize();
-
-    // Determine the object's color
+    // Determine object material properties
     Color objectColor;
+    float reflectivity = 0.0f;
+    float transparency = 0.0f;
+    float refractiveIndex = 1.0f;
+
     if (closestSphere) {
         objectColor = closestSphere->getColor();
+        reflectivity = closestSphere->getReflectivity();
+        transparency = closestSphere->getTransparency();
+        refractiveIndex = closestSphere->getRefractiveIndex();
     } else if (closestTriangle) {
         objectColor = closestTriangle->getColor();
+        reflectivity = closestTriangle->getReflectivity();
+        transparency = closestTriangle->getTransparency();
+        refractiveIndex = closestTriangle->getRefractiveIndex();
     } else if (closestCylinder) {
         objectColor = closestCylinder->getColor();
+        reflectivity = closestCylinder->getReflectivity();
+        transparency = closestCylinder->getTransparency();
+        refractiveIndex = closestCylinder->getRefractiveIndex();
     }
+
+    // Compute shading
+    Color finalColor = {0.0f, 0.0f, 0.0f};
+    Vector3 viewDir = -ray.direction.normalize();
 
     for (const auto& light : lights) {
         Vector3 lightDir = (light.position - hitPoint).normalize();
 
-        // Cast a shadow ray
+        // Shadow ray
         Ray shadowRay(hitPoint + normal * 1e-4, lightDir);
         bool inShadow = false;
 
@@ -128,7 +148,6 @@ Color Scene::traceRayWithShading(const Ray& ray) const {
         }
 
         if (!inShadow) {
-            // Light contributes if not in shadow
             float diff = std::max(0.0f, normal.dot(lightDir));
             Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
             float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
@@ -140,13 +159,37 @@ Color Scene::traceRayWithShading(const Ray& ray) const {
         }
     }
 
-    return finalColor;
+    // Reflection
+    Vector3 reflectionDir = ray.direction - 2 * ray.direction.dot(normal) * normal;
+    Ray reflectedRay(hitPoint + reflectionDir * 1e-4, reflectionDir);
+    Color reflectionColor = traceRayWithShading(reflectedRay, depth - 1);
+
+    // Refraction
+    Color refractionColor = {0.0f, 0.0f, 0.0f};
+    if (transparency > 0.0f) {
+        float eta = 1.0f / refractiveIndex; // Assume air refractive index = 1
+        float cosTheta = -normal.dot(ray.direction);
+        float k = 1 - eta * eta * (1 - cosTheta * cosTheta);
+
+        if (k >= 0.0f) {
+            Vector3 refractionDir = eta * ray.direction + (eta * cosTheta - std::sqrt(k)) * normal;
+            refractionDir = refractionDir.normalize();
+            Ray refractedRay(hitPoint + refractionDir * 1e-4, refractionDir);
+            refractionColor = traceRayWithShading(refractedRay, depth - 1);
+        }
+    }
+
+    // Combine reflection, refraction, and shading
+    return finalColor * (1.0f - reflectivity - transparency) +
+           reflectionColor * reflectivity +
+           refractionColor * transparency;
 }
 
 void Scene::addLight(const Vector3 &position, float intensity, const Color &color) {
     lights.push_back({position, intensity, color});
 }
 
+// Load objects and lights from JSON
 void Scene::loadFromJson(const std::string &filename) {
     std::ifstream file(filename);
     json sceneJson;

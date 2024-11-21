@@ -1,9 +1,8 @@
 #include "triangle.h"
 #include <cmath>
 
-Triangle::Triangle(const Vector3 &vertex0, const Vector3 &vertex1,
-                   const Vector3 &vertex2, const Color &col)
-    : v0(vertex0), v1(vertex1), v2(vertex2), color(col) {}
+Triangle::Triangle(const Vector3 &vertex0, const Vector3 &vertex1, const Vector3 &vertex2, const Color &color, float reflectivity, float transparency, float refractiveIndex)
+    : v0(vertex0), v1(vertex1), v2(vertex2), color(color), reflectivity(reflectivity), transparency(transparency), refractiveIndex(refractiveIndex) {}
 
 bool Triangle::doesIntersect(const Ray &ray) const {
     Vector3 edge1 = v1 - v0;
@@ -69,4 +68,16 @@ Vector3 Triangle::getNormal(const Vector3 &) const {
 
 Color Triangle::getColor() const {
     return color;
+}
+
+float Triangle::getReflectivity() const {
+    return reflectivity;
+}
+
+float Triangle::getTransparency() const {
+    return transparency;
+}
+
+float Triangle::getRefractiveIndex() const {
+    return refractiveIndex;
 }

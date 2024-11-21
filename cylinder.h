@@ -7,11 +7,14 @@
 
 class Cylinder {
 public:
-    Cylinder(const Vector3 &c, const Vector3 &a, float r, float h, const Color &col);
+    Cylinder(const Vector3 &c, const Vector3 &a, float r, float h, const Color &color, float reflectivity = 0.0f, float transparency = 0.0f, float refractiveIndex = 1.0f);
     bool doesIntersect(const Ray &ray) const;
     float getIntersectionDistance(const Ray &ray) const;
     Vector3 getNormal(const Vector3 &point) const;
     Color getColor() const;
+    float getReflectivity() const;
+    float getTransparency() const;
+    float getRefractiveIndex() const;
 
 private:
     Vector3 center;
@@ -19,6 +22,9 @@ private:
     float radius;
     float height;
     Color color;
+    float reflectivity;
+    float transparency;
+    float refractiveIndex;
 };
 
 #endif

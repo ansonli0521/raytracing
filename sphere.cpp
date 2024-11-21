@@ -1,8 +1,8 @@
 #include "sphere.h"
 #include <cmath>
 
-Sphere::Sphere(const Vector3 &center, float radius, const Color &color)
-    : center(center), radius(radius), color(color) {}
+Sphere::Sphere(const Vector3 &center, float radius, const Color &color, float reflectivity, float transparency, float refractiveIndex)
+    : center(center), radius(radius), color(color), reflectivity(reflectivity), transparency(transparency), refractiveIndex(refractiveIndex) {}
 
 bool Sphere::doesIntersect(const Ray &ray) const {
     Vector3 oc = ray.origin - center;
@@ -15,11 +15,9 @@ bool Sphere::doesIntersect(const Ray &ray) const {
         return false; // No intersection
     }
 
-    // Calculate the two possible intersection points
     float t1 = (-b - std::sqrt(discriminant)) / (2.0f * a);
     float t2 = (-b + std::sqrt(discriminant)) / (2.0f * a);
 
-    // Return true if either t1 or t2 is a valid intersection
     return (t1 > 1e-6f || t2 > 1e-6f);
 }
 
@@ -46,4 +44,16 @@ Vector3 Sphere::getCenter() const {
 
 Color Sphere::getColor() const {
     return color;
+}
+
+float Sphere::getReflectivity() const {
+    return reflectivity;
+}
+
+float Sphere::getTransparency() const {
+    return transparency;
+}
+
+float Sphere::getRefractiveIndex() const {
+    return refractiveIndex;
 }
