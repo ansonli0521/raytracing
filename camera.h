@@ -4,9 +4,10 @@
 
 #include "vector3.h"
 #include "ray.h"
+#include "color.h"
 #include <string>
 
-class Scene;  // Forward declaration
+class Scene;
 
 class Camera {
 public:
@@ -18,6 +19,7 @@ private:
     float fov;
     int width, height;
     Vector3 right() const;
+    Color toneMap(const Color& hdrColor) const;
 };
 
 #endif

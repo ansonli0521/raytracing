@@ -22,18 +22,19 @@ void Camera::renderScene(const Scene& scene, const std::string& filename, const 
 
             Vector3 rayDirection = (forward + u * right() + v * up).normalize();
             Ray ray(position, rayDirection);
+            
+            Color hdrColor;
             if (renderMode == "binary") {
-                if (scene.traceRay(ray)) {
-                    outFile << "255 0 0 ";
-                } else {
-                    outFile << "0 0 0 ";
-                }
+                hdrColor = scene.traceRay(ray) ? Color(1, 0, 0) : Color(0, 0, 0);
             } else if (renderMode == "phong") {
-                Color color = scene.traceRayWithShading(ray);
-                outFile << static_cast<int>(color.r * 255) << " "
-                        << static_cast<int>(color.g * 255) << " "
-                        << static_cast<int>(color.b * 255) << " ";
+                hdrColor = scene.traceRayWithShading(ray);
             }
+
+            Color mappedColor = toneMap(hdrColor);
+
+            outFile << static_cast<int>(std::clamp(mappedColor.r * 255.0f, 0.0f, 255.0f)) << " "
+                    << static_cast<int>(std::clamp(mappedColor.g * 255.0f, 0.0f, 255.0f)) << " "
+                    << static_cast<int>(std::clamp(mappedColor.b * 255.0f, 0.0f, 255.0f)) << " ";
         }
         outFile << "\n";
     }
@@ -43,4 +44,12 @@ void Camera::renderScene(const Scene& scene, const std::string& filename, const 
 
 Vector3 Camera::right() const {
     return forward.cross(up).normalize();
+}
+
+Color Camera::toneMap(const Color& hdrColor) const {
+    float maxComponent = std::max({hdrColor.r, hdrColor.g, hdrColor.b});
+    if (maxComponent > 1.0f) {
+        return hdrColor * (1.0f / maxComponent);
+    }
+    return hdrColor;
 }
