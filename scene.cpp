@@ -211,20 +211,29 @@ void Scene::loadFromJson(const std::string &filename) {
             Vector3 center = {object["center"][0], object["center"][1], object["center"][2]};
             float radius = object["radius"];
             Color color = {object["color"][0], object["color"][1], object["color"][2]};
-            addSphere(center, radius, color);
+            float reflectivity = object["reflectivity"];
+            float transparency = object["transparency"];
+            float refractiveIndex = object["refractive_index"];
+            addSphere(center, radius, color, reflectivity, transparency, refractiveIndex);
         } else if (type == "triangle") {
             Vector3 v0 = {object["v0"][0], object["v0"][1], object["v0"][2]};
             Vector3 v1 = {object["v1"][0], object["v1"][1], object["v1"][2]};
             Vector3 v2 = {object["v2"][0], object["v2"][1], object["v2"][2]};
             Color color = {object["color"][0], object["color"][1], object["color"][2]};
-            addTriangle(v0, v1, v2, color);
+            float reflectivity = object["reflectivity"];
+            float transparency = object["transparency"];
+            float refractiveIndex = object["refractive_index"];
+            addTriangle(v0, v1, v2, color, reflectivity, transparency, refractiveIndex);
         } else if (type == "cylinder") {
             Vector3 center = {object["center"][0], object["center"][1], object["center"][2]};
             Vector3 axis = {object["axis"][0], object["axis"][1], object["axis"][2]};
             float radius = object["radius"];
             float height = object["height"];
             Color color = {object["color"][0], object["color"][1], object["color"][2]};
-            addCylinder(center, axis, radius, height, color);
+            float reflectivity = object["reflectivity"];
+            float transparency = object["transparency"];
+            float refractiveIndex = object["refractive_index"];
+            addCylinder(center, axis, radius, height, color, reflectivity, transparency, refractiveIndex);
         }
     }
 
