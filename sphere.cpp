@@ -10,7 +10,17 @@ bool Sphere::doesIntersect(const Ray &ray) const {
     float b = 2.0f * oc.dot(ray.direction);
     float c = oc.dot(oc) - radius * radius;
     float discriminant = b * b - 4 * a * c;
-    return discriminant > 0;
+
+    if (discriminant < 0) {
+        return false; // No intersection
+    }
+
+    // Calculate the two possible intersection points
+    float t1 = (-b - std::sqrt(discriminant)) / (2.0f * a);
+    float t2 = (-b + std::sqrt(discriminant)) / (2.0f * a);
+
+    // Return true if either t1 or t2 is a valid intersection
+    return (t1 > 1e-6f || t2 > 1e-6f);
 }
 
 float Sphere::getIntersectionDistance(const Ray &ray) const {

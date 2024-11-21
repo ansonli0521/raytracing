@@ -101,14 +101,43 @@ Color Scene::traceRayWithShading(const Ray& ray) const {
 
     for (const auto& light : lights) {
         Vector3 lightDir = (light.position - hitPoint).normalize();
-        float diff = std::max(0.0f, normal.dot(lightDir));
-        Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
-        float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
 
-        Color diffuse = objectColor * diff;
-        Color specular = light.color * spec * light.intensity;
+        // Cast a shadow ray
+        Ray shadowRay(hitPoint + normal * 1e-4, lightDir);
+        bool inShadow = false;
 
-        finalColor = finalColor + diffuse * light.intensity + specular;
+        for (const auto& sphere : spheres) {
+            if (sphere->doesIntersect(shadowRay)) {
+                inShadow = true;
+                break;
+            }
+        }
+
+        for (const auto& triangle : triangles) {
+            if (triangle->doesIntersect(shadowRay)) {
+                inShadow = true;
+                break;
+            }
+        }
+
+        for (const auto& cylinder : cylinders) {
+            if (cylinder->doesIntersect(shadowRay)) {
+                inShadow = true;
+                break;
+            }
+        }
+
+        if (!inShadow) {
+            // Light contributes if not in shadow
+            float diff = std::max(0.0f, normal.dot(lightDir));
+            Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
+            float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
+
+            Color diffuse = objectColor * diff;
+            Color specular = light.color * spec * light.intensity;
+
+            finalColor = finalColor + diffuse * light.intensity + specular;
+        }
     }
 
     return finalColor;
