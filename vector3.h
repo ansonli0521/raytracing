@@ -54,6 +54,10 @@ public:
         float magnitude = std::sqrt(x * x + y * y + z * z);
         return (*this) / magnitude;
     }
+
+    float length() const {
+        return std::sqrt(x * x + y * y + z * z);
+    }
 };
 
 inline Vector3 operator*(float scalar, const Vector3 &vector) {
