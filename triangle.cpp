@@ -1,4 +1,5 @@
 #include "triangle.h"
+#include "boundingbox.h"
 #include <cmath>
 
 Triangle::Triangle(const Vector3 &vertex0, const Vector3 &vertex1, const Vector3 &vertex2, 
@@ -101,4 +102,18 @@ float Triangle::getTransparency() const {
 
 float Triangle::getRefractiveIndex() const {
     return refractiveIndex;
+}
+
+BoundingBox Triangle::getBoundingBox() const {
+    Vector3 min(
+        std::min({v0.x, v1.x, v2.x}),
+        std::min({v0.y, v1.y, v2.y}),
+        std::min({v0.z, v1.z, v2.z})
+    );
+    Vector3 max(
+        std::max({v0.x, v1.x, v2.x}),
+        std::max({v0.y, v1.y, v2.y}),
+        std::max({v0.z, v1.z, v2.z})
+    );
+    return BoundingBox(min, max);
 }

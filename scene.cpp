@@ -3,6 +3,9 @@
 #include <fstream>
 #include <limits>
 #include <cmath>
+#include <algorithm>
+#include "bvhnode.h"
+#include "boundingbox.h"
 #include "texture.h"
 
 using json = nlohmann::json;
@@ -19,176 +22,110 @@ void Scene::addCylinder(const Vector3 &center, const Vector3 &axis, float radius
     cylinders.emplace_back(new Cylinder(center, axis, radius, height, color, reflectivity, transparency, refractiveIndex, texture));
 }
 
+void Scene::addLight(const Vector3 &position, float intensity, const Color &color) {
+    lights.push_back({position, intensity, color});
+}
+
+// Build BVH for the scene
+void Scene::buildBVH() {
+    std::vector<BVHNode::Primitive> primitives;
+
+    // Add spheres to primitives
+    for (size_t i = 0; i < spheres.size(); ++i) {
+        BoundingBox bbox = spheres[i]->getBoundingBox();
+        primitives.push_back(BVHNode::Primitive(bbox, static_cast<void*>(spheres[i]), BVHNode::Primitive::PrimitiveType::Sphere));
+    }
+
+    // Add triangles to primitives
+    for (size_t i = 0; i < triangles.size(); ++i) {
+        BoundingBox bbox = triangles[i]->getBoundingBox();
+        primitives.push_back(BVHNode::Primitive(bbox, static_cast<void*>(triangles[i]), BVHNode::Primitive::PrimitiveType::Triangle));
+    }
+
+    // Add cylinders to primitives
+    for (size_t i = 0; i < cylinders.size(); ++i) {
+        BoundingBox bbox = cylinders[i]->getBoundingBox();
+        primitives.push_back(BVHNode::Primitive(bbox, static_cast<void*>(cylinders[i]), BVHNode::Primitive::PrimitiveType::Cylinder));
+    }
+
+    // Build the BVH tree
+    bvhRoot = BVHNode::build(primitives, 0);
+}
+
+// Trace a ray against the BVH
 bool Scene::traceRay(const Ray &ray) const {
-    for (const auto &sphere : spheres) {
-        if (sphere->doesIntersect(ray)) {
-            return true;
-        }
+    if (bvhRoot) {
+        return bvhRoot->doesIntersect(ray);
     }
-
-    for (const auto &triangle : triangles) {
-        if (triangle->doesIntersect(ray)) {
-            return true;
-        }
-    }
-
-    for (const auto &cylinder : cylinders) {
-        if (cylinder->doesIntersect(ray)) {
-            return true;
-        }
-    }
-
     return false;
 }
 
+// Ray tracing with shading
 Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
     if (depth <= 0) {
         return {0.0f, 0.0f, 0.0f}; // Stop recursion
     }
 
     float closestDistance = std::numeric_limits<float>::max();
-    const Sphere* closestSphere = nullptr;
-    const Triangle* closestTriangle = nullptr;
-    const Cylinder* closestCylinder = nullptr;
     Vector3 hitPoint, normal;
     Color objectColor;
+    float reflectivity = 0.0f, transparency = 0.0f, refractiveIndex = 1.0f;
 
-    // Find the closest intersection
-    for (const auto& sphere : spheres) {
-        float t = sphere->getIntersectionDistance(ray);
-        if (t > 0 && t < closestDistance) {
-            closestDistance = t;
-            closestSphere = sphere;
-            closestTriangle = nullptr;
-            closestCylinder = nullptr;
-            hitPoint = ray.origin + ray.direction * t;
-            normal = (hitPoint - sphere->getCenter()).normalize();
-            objectColor = sphere->getColor(hitPoint);
-        }
-    }
+    if (bvhRoot && bvhRoot->trace(ray, closestDistance, hitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
+        // Compute shading, reflection, and refraction here...
 
-    for (const auto& triangle : triangles) {
-        float t = triangle->getIntersectionDistance(ray);
-        if (t > 0 && t < closestDistance) {
-            closestDistance = t;
-            closestSphere = nullptr;
-            closestTriangle = triangle;
-            closestCylinder = nullptr;
-            hitPoint = ray.origin + ray.direction * t;
-            normal = triangle->getNormal(hitPoint);
-            objectColor = triangle->getColor(hitPoint);
-        }
-    }
+        // Shadow ray and shading
+        Color finalColor = {0.0f, 0.0f, 0.0f};
+        Vector3 viewDir = -ray.direction.normalize();
 
-    for (const auto& cylinder : cylinders) {
-        float t = cylinder->getIntersectionDistance(ray);
-        if (t > 0 && t < closestDistance) {
-            closestDistance = t;
-            closestSphere = nullptr;
-            closestTriangle = nullptr;
-            closestCylinder = cylinder;
-            hitPoint = ray.origin + ray.direction * t;
-            normal = cylinder->getNormal(hitPoint);
-            objectColor = cylinder->getColor(hitPoint);
-        }
-    }
+        for (const auto &light : lights) {
+            Vector3 lightDir = (light.position - hitPoint).normalize();
 
-    if (closestDistance == std::numeric_limits<float>::max()) {
-        return {0.0f, 0.0f, 0.0f}; // Background color
-    }
+            Ray shadowRay(hitPoint + normal * 1e-4, lightDir);
+            bool inShadow = bvhRoot->doesIntersect(shadowRay);
 
-    float reflectivity = 0.0f;
-    float transparency = 0.0f;
-    float refractiveIndex = 1.0f;
+            if (!inShadow) {
+                float diff = std::max(0.0f, normal.dot(lightDir));
+                Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
+                float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
 
-    if (closestSphere) {
-        reflectivity = closestSphere->getReflectivity();
-        transparency = closestSphere->getTransparency();
-        refractiveIndex = closestSphere->getRefractiveIndex();
-    } else if (closestTriangle) {
-        reflectivity = closestTriangle->getReflectivity();
-        transparency = closestTriangle->getTransparency();
-        refractiveIndex = closestTriangle->getRefractiveIndex();
-    } else if (closestCylinder) {
-        reflectivity = closestCylinder->getReflectivity();
-        transparency = closestCylinder->getTransparency();
-        refractiveIndex = closestCylinder->getRefractiveIndex();
-    }
+                Color diffuse = objectColor * diff;
+                Color specular = light.color * spec * light.intensity;
 
-    // Compute shading
-    Color finalColor = {0.0f, 0.0f, 0.0f};
-    Vector3 viewDir = -ray.direction.normalize();
-
-    for (const auto& light : lights) {
-        Vector3 lightDir = (light.position - hitPoint).normalize();
-
-        // Shadow ray
-        Ray shadowRay(hitPoint + normal * 1e-4, lightDir);
-        bool inShadow = false;
-
-        for (const auto& sphere : spheres) {
-            if (sphere->doesIntersect(shadowRay)) {
-                inShadow = true;
-                break;
+                finalColor = finalColor + diffuse * light.intensity + specular;
             }
         }
 
-        for (const auto& triangle : triangles) {
-            if (triangle->doesIntersect(shadowRay)) {
-                inShadow = true;
-                break;
+        // Reflection
+        Vector3 reflectionDir = ray.direction - 2 * ray.direction.dot(normal) * normal;
+        Ray reflectedRay(hitPoint + reflectionDir * 1e-4, reflectionDir);
+        Color reflectionColor = traceRayWithShading(reflectedRay, depth - 1);
+
+        // Refraction
+        Color refractionColor = {0.0f, 0.0f, 0.0f};
+        if (transparency > 0.0f) {
+            float eta = 1.0f / refractiveIndex; // Assume air refractive index = 1
+            float cosTheta = -normal.dot(ray.direction);
+            float k = 1 - eta * eta * (1 - cosTheta * cosTheta);
+
+            if (k >= 0.0f) {
+                Vector3 refractionDir = eta * ray.direction + (eta * cosTheta - std::sqrt(k)) * normal;
+                refractionDir = refractionDir.normalize();
+                Ray refractedRay(hitPoint + refractionDir * 1e-4, refractionDir);
+                refractionColor = traceRayWithShading(refractedRay, depth - 1);
             }
         }
 
-        for (const auto& cylinder : cylinders) {
-            if (cylinder->doesIntersect(shadowRay)) {
-                inShadow = true;
-                break;
-            }
-        }
-
-        if (!inShadow) {
-            float diff = std::max(0.0f, normal.dot(lightDir));
-            Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
-            float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
-
-            Color diffuse = objectColor * diff;
-            Color specular = light.color * spec * light.intensity;
-
-            finalColor = finalColor + diffuse * light.intensity + specular;
-        }
+        // Combine reflection, refraction, and shading
+        return finalColor * (1.0f - reflectivity - transparency) +
+               reflectionColor * reflectivity +
+               refractionColor * transparency;
     }
 
-    // Reflection
-    Vector3 reflectionDir = ray.direction - 2 * ray.direction.dot(normal) * normal;
-    Ray reflectedRay(hitPoint + reflectionDir * 1e-4, reflectionDir);
-    Color reflectionColor = traceRayWithShading(reflectedRay, depth - 1);
-
-    // Refraction
-    Color refractionColor = {0.0f, 0.0f, 0.0f};
-    if (transparency > 0.0f) {
-        float eta = 1.0f / refractiveIndex; // Assume air refractive index = 1
-        float cosTheta = -normal.dot(ray.direction);
-        float k = 1 - eta * eta * (1 - cosTheta * cosTheta);
-
-        if (k >= 0.0f) {
-            Vector3 refractionDir = eta * ray.direction + (eta * cosTheta - std::sqrt(k)) * normal;
-            refractionDir = refractionDir.normalize();
-            Ray refractedRay(hitPoint + refractionDir * 1e-4, refractionDir);
-            refractionColor = traceRayWithShading(refractedRay, depth - 1);
-        }
-    }
-
-    // Combine reflection, refraction, and shading
-    return finalColor * (1.0f - reflectivity - transparency) +
-           reflectionColor * reflectivity +
-           refractionColor * transparency;
+    return {0.0f, 0.0f, 0.0f}; // Background color
 }
 
-void Scene::addLight(const Vector3 &position, float intensity, const Color &color) {
-    lights.push_back({position, intensity, color});
-}
-
+// Load scene from JSON
 void Scene::loadFromJson(const std::string &filename) {
     std::ifstream file(filename);
     json sceneJson;

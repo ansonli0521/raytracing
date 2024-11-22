@@ -1,4 +1,5 @@
 #include "sphere.h"
+#include "boundingbox.h"
 #include <cmath>
 
 Sphere::Sphere(const Vector3 &center, float radius, const Color &color, 
@@ -66,4 +67,10 @@ float Sphere::getTransparency() const {
 
 float Sphere::getRefractiveIndex() const {
     return refractiveIndex;
+}
+
+BoundingBox Sphere::getBoundingBox() const {
+    Vector3 min = center - Vector3(radius, radius, radius);
+    Vector3 max = center + Vector3(radius, radius, radius);
+    return BoundingBox(min, max);
 }

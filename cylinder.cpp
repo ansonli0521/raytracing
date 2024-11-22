@@ -1,4 +1,5 @@
 #include "cylinder.h"
+#include "boundingbox.h"
 #include <cmath>
 
 Cylinder::Cylinder(const Vector3 &c, const Vector3 &a, float r, float h, const Color &col,
@@ -162,4 +163,11 @@ float Cylinder::getTransparency() const {
 
 float Cylinder::getRefractiveIndex() const {
     return refractiveIndex;
+}
+
+BoundingBox Cylinder::getBoundingBox() const {
+    Vector3 radiusVector(radius, radius, radius);
+    Vector3 min = center - radiusVector - axis * (height / 2);
+    Vector3 max = center + radiusVector + axis * (height / 2);
+    return BoundingBox(min, max);
 }

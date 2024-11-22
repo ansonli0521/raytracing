@@ -5,6 +5,7 @@
 #include "ray.h"
 #include "color.h"
 #include "texture.h"
+#include "boundingbox.h"
 
 class Triangle {
 public:
@@ -20,6 +21,7 @@ public:
     float getReflectivity() const;
     float getTransparency() const;
     float getRefractiveIndex() const;
+    BoundingBox getBoundingBox() const;
 
 private:
     Vector3 v0, v1, v2;
