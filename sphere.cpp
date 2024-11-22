@@ -1,8 +1,11 @@
 #include "sphere.h"
 #include <cmath>
 
-Sphere::Sphere(const Vector3 &center, float radius, const Color &color, float reflectivity, float transparency, float refractiveIndex)
-    : center(center), radius(radius), color(color), reflectivity(reflectivity), transparency(transparency), refractiveIndex(refractiveIndex) {}
+Sphere::Sphere(const Vector3 &center, float radius, const Color &color, 
+               float reflectivity, float transparency, float refractiveIndex, 
+               Texture* texture)
+    : center(center), radius(radius), color(color), reflectivity(reflectivity), 
+      transparency(transparency), refractiveIndex(refractiveIndex), texture(texture) {}
 
 bool Sphere::doesIntersect(const Ray &ray) const {
     Vector3 oc = ray.origin - center;
@@ -42,7 +45,14 @@ Vector3 Sphere::getCenter() const {
     return center;
 }
 
-Color Sphere::getColor() const {
+Color Sphere::getColor(const Vector3 &hitPoint) const {
+    if (texture) {
+        Vector3 normal = (hitPoint - center).normalize();
+        float u = 0.5f + std::atan2(normal.z, normal.x) / (2.0f * M_PI);
+        float v = 0.5f - std::asin(normal.y) / M_PI;
+
+        return texture->getColorAt(u, v);
+    }
     return color;
 }
 

@@ -1,8 +1,10 @@
 #include "cylinder.h"
 #include <cmath>
 
-Cylinder::Cylinder(const Vector3 &c, const Vector3 &a, float r, float h, const Color &col, float reflectivity, float transparency, float refractiveIndex)
-    : center(c), axis(a.normalize()), radius(r), height(h), color(col), reflectivity(reflectivity), transparency(transparency), refractiveIndex(refractiveIndex) {}
+Cylinder::Cylinder(const Vector3 &c, const Vector3 &a, float r, float h, const Color &col,
+                   float reflectivity, float transparency, float refractiveIndex, Texture* texture)
+    : center(c), axis(a.normalize()), radius(r), height(h), color(col), reflectivity(reflectivity),
+      transparency(transparency), refractiveIndex(refractiveIndex), texture(texture) {}
 
 bool Cylinder::doesIntersect(const Ray &ray) const {
     Vector3 oc = ray.origin - center;
@@ -121,7 +123,32 @@ Vector3 Cylinder::getNormal(const Vector3 &point) const {
     return (point - center - projection).normalize(); // Curved surface
 }
 
-Color Cylinder::getColor() const {
+Color Cylinder::getColor(const Vector3 &point) const {
+    if (texture) {
+        float heightCheck = (point - center).dot(axis);
+        Vector3 local;
+
+        if (std::abs(heightCheck - height / 2) < 1e-6f) {
+            // Map texture for the top surface
+            local = point - (center + axis * (height / 2));
+            float u = (local.x / radius + 1.0f) * 0.5f;
+            float v = (local.y / radius + 1.0f) * 0.5f;
+            return texture->getColorAt(u, v);
+        } else if (std::abs(heightCheck + height / 2) < 1e-6f) {
+            // Map texture for the bottom surface
+            local = point - (center - axis * (height / 2));
+            float u = (local.x / radius + 1.0f) * 0.5f;
+            float v = (local.y / radius + 1.0f) * 0.5f;
+            return texture->getColorAt(u, v);
+        } else {
+            // Map texture for the curved surface
+            float theta = std::atan2(point.z - center.z, point.x - center.x);
+            if (theta < 0) theta += 2 * M_PI;
+            float v = (heightCheck + height / 2) / height;
+            float u = theta / (2 * M_PI);
+            return texture->getColorAt(u, v);
+        }
+    }
     return color;
 }
 

@@ -3,19 +3,20 @@
 #include <fstream>
 #include <limits>
 #include <cmath>
+#include "texture.h"
 
 using json = nlohmann::json;
 
-void Scene::addSphere(const Vector3 &center, float radius, const Color &color, float reflectivity, float transparency, float refractiveIndex) {
-    spheres.emplace_back(new Sphere(center, radius, color, reflectivity, transparency, refractiveIndex));
+void Scene::addSphere(const Vector3 &center, float radius, const Color &color, float reflectivity, float transparency, float refractiveIndex, Texture* texture) {
+    spheres.emplace_back(new Sphere(center, radius, color, reflectivity, transparency, refractiveIndex, texture));
 }
 
-void Scene::addTriangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2, const Color &color, float reflectivity, float transparency, float refractiveIndex) {
-    triangles.emplace_back(new Triangle(v0, v1, v2, color, reflectivity, transparency, refractiveIndex));
+void Scene::addTriangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2, const Color &color, float reflectivity, float transparency, float refractiveIndex, Texture* texture) {
+    triangles.emplace_back(new Triangle(v0, v1, v2, color, reflectivity, transparency, refractiveIndex, texture));
 }
 
-void Scene::addCylinder(const Vector3 &center, const Vector3 &axis, float radius, float height, const Color &color, float reflectivity, float transparency, float refractiveIndex) {
-    cylinders.emplace_back(new Cylinder(center, axis, radius, height, color, reflectivity, transparency, refractiveIndex));
+void Scene::addCylinder(const Vector3 &center, const Vector3 &axis, float radius, float height, const Color &color, float reflectivity, float transparency, float refractiveIndex, Texture* texture) {
+    cylinders.emplace_back(new Cylinder(center, axis, radius, height, color, reflectivity, transparency, refractiveIndex, texture));
 }
 
 bool Scene::traceRay(const Ray &ray) const {
@@ -50,6 +51,7 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
     const Triangle* closestTriangle = nullptr;
     const Cylinder* closestCylinder = nullptr;
     Vector3 hitPoint, normal;
+    Color objectColor;
 
     // Find the closest intersection
     for (const auto& sphere : spheres) {
@@ -61,6 +63,7 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
             closestCylinder = nullptr;
             hitPoint = ray.origin + ray.direction * t;
             normal = (hitPoint - sphere->getCenter()).normalize();
+            objectColor = sphere->getColor(hitPoint);
         }
     }
 
@@ -73,6 +76,7 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
             closestCylinder = nullptr;
             hitPoint = ray.origin + ray.direction * t;
             normal = triangle->getNormal(hitPoint);
+            objectColor = triangle->getColor(hitPoint);
         }
     }
 
@@ -85,6 +89,7 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
             closestCylinder = cylinder;
             hitPoint = ray.origin + ray.direction * t;
             normal = cylinder->getNormal(hitPoint);
+            objectColor = cylinder->getColor(hitPoint);
         }
     }
 
@@ -92,24 +97,19 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
         return {0.0f, 0.0f, 0.0f}; // Background color
     }
 
-    // Determine object material properties
-    Color objectColor;
     float reflectivity = 0.0f;
     float transparency = 0.0f;
     float refractiveIndex = 1.0f;
 
     if (closestSphere) {
-        objectColor = closestSphere->getColor();
         reflectivity = closestSphere->getReflectivity();
         transparency = closestSphere->getTransparency();
         refractiveIndex = closestSphere->getRefractiveIndex();
     } else if (closestTriangle) {
-        objectColor = closestTriangle->getColor();
         reflectivity = closestTriangle->getReflectivity();
         transparency = closestTriangle->getTransparency();
         refractiveIndex = closestTriangle->getRefractiveIndex();
     } else if (closestCylinder) {
-        objectColor = closestCylinder->getColor();
         reflectivity = closestCylinder->getReflectivity();
         transparency = closestCylinder->getTransparency();
         refractiveIndex = closestCylinder->getRefractiveIndex();
@@ -189,7 +189,6 @@ void Scene::addLight(const Vector3 &position, float intensity, const Color &colo
     lights.push_back({position, intensity, color});
 }
 
-// Load objects and lights from JSON
 void Scene::loadFromJson(const std::string &filename) {
     std::ifstream file(filename);
     json sceneJson;
@@ -207,6 +206,13 @@ void Scene::loadFromJson(const std::string &filename) {
 
     for (const auto &object : sceneJson["objects"]) {
         std::string type = object["type"];
+        Texture* texture = nullptr;
+
+        if (object.contains("texture")) {
+            std::string textureFile = object["texture"];
+            texture = new Texture(textureFile);
+        }
+
         if (type == "sphere") {
             Vector3 center = {object["center"][0], object["center"][1], object["center"][2]};
             float radius = object["radius"];
@@ -214,7 +220,7 @@ void Scene::loadFromJson(const std::string &filename) {
             float reflectivity = object["reflectivity"];
             float transparency = object["transparency"];
             float refractiveIndex = object["refractive_index"];
-            addSphere(center, radius, color, reflectivity, transparency, refractiveIndex);
+            addSphere(center, radius, color, reflectivity, transparency, refractiveIndex, texture);
         } else if (type == "triangle") {
             Vector3 v0 = {object["v0"][0], object["v0"][1], object["v0"][2]};
             Vector3 v1 = {object["v1"][0], object["v1"][1], object["v1"][2]};
@@ -223,7 +229,7 @@ void Scene::loadFromJson(const std::string &filename) {
             float reflectivity = object["reflectivity"];
             float transparency = object["transparency"];
             float refractiveIndex = object["refractive_index"];
-            addTriangle(v0, v1, v2, color, reflectivity, transparency, refractiveIndex);
+            addTriangle(v0, v1, v2, color, reflectivity, transparency, refractiveIndex, texture);
         } else if (type == "cylinder") {
             Vector3 center = {object["center"][0], object["center"][1], object["center"][2]};
             Vector3 axis = {object["axis"][0], object["axis"][1], object["axis"][2]};
@@ -233,7 +239,7 @@ void Scene::loadFromJson(const std::string &filename) {
             float reflectivity = object["reflectivity"];
             float transparency = object["transparency"];
             float refractiveIndex = object["refractive_index"];
-            addCylinder(center, axis, radius, height, color, reflectivity, transparency, refractiveIndex);
+            addCylinder(center, axis, radius, height, color, reflectivity, transparency, refractiveIndex, texture);
         }
     }
 

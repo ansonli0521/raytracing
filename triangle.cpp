@@ -1,8 +1,11 @@
 #include "triangle.h"
 #include <cmath>
 
-Triangle::Triangle(const Vector3 &vertex0, const Vector3 &vertex1, const Vector3 &vertex2, const Color &color, float reflectivity, float transparency, float refractiveIndex)
-    : v0(vertex0), v1(vertex1), v2(vertex2), color(color), reflectivity(reflectivity), transparency(transparency), refractiveIndex(refractiveIndex) {}
+Triangle::Triangle(const Vector3 &vertex0, const Vector3 &vertex1, const Vector3 &vertex2, 
+                   const Color &color, float reflectivity, float transparency, 
+                   float refractiveIndex, Texture* texture)
+    : v0(vertex0), v1(vertex1), v2(vertex2), color(color), reflectivity(reflectivity), 
+      transparency(transparency), refractiveIndex(refractiveIndex), texture(texture) {}
 
 bool Triangle::doesIntersect(const Ray &ray) const {
     Vector3 edge1 = v1 - v0;
@@ -66,7 +69,25 @@ Vector3 Triangle::getNormal(const Vector3 &) const {
     return (v1 - v0).cross(v2 - v0).normalize();
 }
 
-Color Triangle::getColor() const {
+Color Triangle::getColor(const Vector3 &hitPoint) const {
+    if (texture) {
+        Vector3 edge1 = v1 - v0;
+        Vector3 edge2 = v2 - v0;
+        Vector3 pointVector = hitPoint - v0;
+
+        float d00 = edge1.dot(edge1);
+        float d01 = edge1.dot(edge2);
+        float d11 = edge2.dot(edge2);
+        float d20 = pointVector.dot(edge1);
+        float d21 = pointVector.dot(edge2);
+        float denom = d00 * d11 - d01 * d01;
+
+        float v = (d11 * d20 - d01 * d21) / denom;
+        float w = (d00 * d21 - d01 * d20) / denom;
+        float u = 1.0f - v - w;
+
+        return texture->getColorAt(u, v);
+    }
     return color;
 }
 
