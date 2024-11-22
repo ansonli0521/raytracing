@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
 
     Scene scene;
     scene.loadFromJson(filename);
+    scene.buildBVH();
 
     Camera* camera = scene.getCamera();
     if (camera) {
