@@ -72,25 +72,39 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
     float reflectivity = 0.0f, transparency = 0.0f, refractiveIndex = 1.0f;
 
     if (bvhRoot && bvhRoot->trace(ray, closestDistance, hitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
-        // Compute shading, reflection, and refraction here...
-
-        // Shadow ray and shading
         Color finalColor = {0.0f, 0.0f, 0.0f};
         Vector3 viewDir = -ray.direction.normalize();
 
+        // Shadow ray and light contribution
         for (const auto &light : lights) {
             Vector3 lightDir = (light.position - hitPoint).normalize();
+            Ray shadowRay(hitPoint + normal * 1e-4, lightDir); // Avoid self-intersection
+            Color lightTransmission = {1.0f, 1.0f, 1.0f};
+            float lightDistance = (light.position - hitPoint).length();
+            bool inShadow = false;
 
-            Ray shadowRay(hitPoint + normal * 1e-4, lightDir);
-            bool inShadow = bvhRoot->doesIntersect(shadowRay);
+            // Trace shadow ray through the BVH
+            float shadowClosest = lightDistance; // Limit shadow ray to light distance
+            while (bvhRoot->trace(shadowRay, shadowClosest, hitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
+                if (transparency > 0.0f) {
+                    lightTransmission = lightTransmission * objectColor * transparency;
+                    shadowRay = Ray(hitPoint + shadowRay.direction * 1e-4, shadowRay.direction);
+                    shadowClosest = lightDistance; // Reset for subsequent intersections
+                } else {
+                    lightTransmission = {0.0f, 0.0f, 0.0f};
+                    inShadow = true;
+                    break;
+                }
+            }
 
+            // Apply shading if the light is not completely blocked
             if (!inShadow) {
                 float diff = std::max(0.0f, normal.dot(lightDir));
                 Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
                 float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
 
-                Color diffuse = objectColor * diff;
-                Color specular = light.color * spec * light.intensity;
+                Color diffuse = objectColor * diff * lightTransmission;
+                Color specular = light.color * spec * light.intensity * lightTransmission;
 
                 finalColor = finalColor + diffuse * light.intensity + specular;
             }
@@ -99,7 +113,7 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
         // Reflection
         Vector3 reflectionDir = ray.direction - 2 * ray.direction.dot(normal) * normal;
         Ray reflectedRay(hitPoint + reflectionDir * 1e-4, reflectionDir);
-        Color reflectionColor = traceRayWithShading(reflectedRay, depth - 1);
+        Color reflectionColor = traceRayWithShading(reflectedRay, depth - 1) * reflectivity;
 
         // Refraction
         Color refractionColor = {0.0f, 0.0f, 0.0f};
@@ -112,14 +126,14 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
                 Vector3 refractionDir = eta * ray.direction + (eta * cosTheta - std::sqrt(k)) * normal;
                 refractionDir = refractionDir.normalize();
                 Ray refractedRay(hitPoint + refractionDir * 1e-4, refractionDir);
-                refractionColor = traceRayWithShading(refractedRay, depth - 1);
+                refractionColor = traceRayWithShading(refractedRay, depth - 1) * transparency;
             }
         }
 
         // Combine reflection, refraction, and shading
         return finalColor * (1.0f - reflectivity - transparency) +
-               reflectionColor * reflectivity +
-               refractionColor * transparency;
+               reflectionColor +
+               refractionColor;
     }
 
     return {0.0f, 0.0f, 0.0f}; // Background color

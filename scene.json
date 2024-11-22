@@ -26,28 +26,6 @@
             "texture": "textures/sphere.ppm"
         },
         {
-            "type": "triangle",
-            "v0": [-5, -5, -9],
-            "v1": [5, -5, -9],
-            "v2": [-5, 5, -9],
-            "color": [0, 1, 0],
-            "reflectivity": 0.1,
-            "transparency": 0.0,
-            "refractive_index": 1.0,
-            "texture": "textures/plane.ppm"
-        },
-        {
-            "type": "triangle",
-            "v0": [5, -5, -9],
-            "v1": [5, 5, -9],
-            "v2": [-5, 5, -9],
-            "color": [0, 1, 0],
-            "reflectivity": 0.1,
-            "transparency": 0.0,
-            "refractive_index": 1.0,
-            "texture": "textures/plane.ppm"
-        },
-        {
             "type": "cylinder",
             "center": [2.5, 2, -7],
             "axis": [0, 0, 1],
