@@ -4,12 +4,13 @@
 #include <string>
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
-        std::cerr << "Usage: ./raytracer <render_mode> (binary or phong)\n";
+    if (argc < 3) {
+        std::cerr << "Usage: ./raytracer <render_mode> (binary or phong) <json_file_name>\n";
         return 1;
     }
 
     std::string renderMode = argv[1];
+    std::string filename = argv[2];
 
     if (renderMode != "binary" && renderMode != "phong") {
         std::cerr << "Invalid render mode. Use 'binary' or 'phong'.\n";
@@ -17,7 +18,7 @@ int main(int argc, char** argv) {
     }
 
     Scene scene;
-    scene.loadFromJson("scene.json");
+    scene.loadFromJson(filename);
 
     Camera* camera = scene.getCamera();
     if (camera) {

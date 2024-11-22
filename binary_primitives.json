@@ -1,0 +1,43 @@
+{
+    "camera": {
+        "position": [0.0, 0, 0],
+        "look_at": [0.0, 0, 1.0],
+        "up": [0.0, 1.0, 0.0],
+        "fov": 45.0,
+        "width": 1200,
+        "height": 800
+    },
+    "lights": [],
+    "objects": [
+        {
+            "type": "sphere",
+            "center": [-0.3, 0.19, 1],
+            "radius": 0.2,
+            "color": [1, 0, 0],
+            "reflectivity": 0.5,
+            "transparency": 0.3,
+            "refractive_index": 1.5
+        },
+        {
+            "type": "triangle",
+            "v0": [0, 0, 1],
+            "v1": [0.5, 0, 1],
+            "v2": [0.25, 0.25, 1],
+            "color": [0, 1, 0],
+            "reflectivity": 0.2,
+            "transparency": 0.0,
+            "refractive_index": 1.0
+        },
+        {
+            "type": "cylinder",
+            "center": [-0.3, -0.2, 1],
+            "axis": [1, 0, 0],
+            "radius": 0.15,
+            "height": 0.2,
+            "color": [0, 0, 1],
+            "reflectivity": 0.3,
+            "transparency": 0.5,
+            "refractive_index": 1.3
+        }
+    ]
+}
