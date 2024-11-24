@@ -21,6 +21,11 @@ struct Color {
         return Color(r * other.r, g * other.g, b * other.b);
     }
 
+     // Overload division operator for scalar
+    Color operator/(float scalar) const {
+        return Color(r / scalar, g / scalar, b / scalar);
+    }
+
     // Compound addition assignment
     Color& operator+=(const Color &other) {
         r += other.r;

@@ -4,6 +4,7 @@
 #include <limits>
 #include <cmath>
 #include <algorithm>
+#include <random>
 #include "bvhnode.h"
 #include "boundingbox.h"
 #include "texture.h"
@@ -153,39 +154,29 @@ Color Scene::traceRayWithBRDF(const Ray &ray, int depth) const {
         Color finalColor = {0.0f, 0.0f, 0.0f};
         Vector3 viewDir = -ray.direction.normalize();
 
-        // **Light Sampling**
+        // **Light Sampling and Soft Shadows**
+        const int numLightSamples = 16; // Number of samples for soft shadows
         for (const auto &light : lights) {
-            Vector3 lightDir = (light.position - hitPoint).normalize();
-            Ray shadowRay(hitPoint + normal * 1e-4, lightDir); // Avoid self-intersection
-            Color lightTransmission = {1.0f, 1.0f, 1.0f};
-            float lightDistance = (light.position - hitPoint).length();
-            bool inShadow = false;
+            Color lightContribution = {0.0f, 0.0f, 0.0f};
 
-            // **Shadow Handling**
-            float shadowClosest = lightDistance; // Limit shadow ray to light distance
-            while (bvhRoot->trace(shadowRay, shadowClosest, hitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
-                if (transparency > 0.0f) {
-                    lightTransmission = lightTransmission * objectColor * transparency;
-                    shadowRay = Ray(hitPoint + shadowRay.direction * 1e-4, shadowRay.direction);
-                    shadowClosest = lightDistance; // Reset for subsequent intersections
-                } else {
-                    lightTransmission = {0.0f, 0.0f, 0.0f};
-                    inShadow = true;
-                    break;
+            for (int i = 0; i < numLightSamples; ++i) {
+                Vector3 sampledPoint;
+                float pdf;
+                Light sampledLight = sampleLight(hitPoint, sampledPoint, pdf);
+
+                Vector3 lightDir = (sampledPoint - hitPoint).normalize();
+                float lightDistance = (sampledPoint - hitPoint).length();
+                Ray shadowRay(hitPoint + normal * 1e-4, lightDir); // Offset to avoid self-intersection
+
+                // Check if shadow ray reaches the light
+                if (!bvhRoot->trace(shadowRay, lightDistance, hitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
+                    float diff = std::max(0.0f, normal.dot(lightDir));
+                    lightContribution = lightContribution + sampledLight.color * diff / pdf;
                 }
             }
 
-            // If light is not completely blocked, apply lighting contribution
-            if (!inShadow) {
-                float diff = std::max(0.0f, normal.dot(lightDir));
-                Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
-                float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
-
-                Color diffuse = objectColor * diff * lightTransmission;
-                Color specular = light.color * spec * light.intensity * lightTransmission;
-
-                finalColor = finalColor + diffuse * light.intensity + specular;
-            }
+            // Average the contribution from all light samples
+            finalColor = finalColor + lightContribution / numLightSamples;
         }
 
         // **Diffuse Reflection with BRDF Sampling**
@@ -249,6 +240,36 @@ Vector3 Scene::randomHemisphereDirection(const Vector3& normal) const {
     }
 
     return randomDir;
+}
+
+Light Scene::sampleLight(const Vector3& surfacePoint, Vector3& sampledPoint, float& pdf) const {
+    if (lights.empty()) {
+        throw std::runtime_error("No lights in the scene!");
+    }
+
+    std::mt19937 generator(std::random_device{}());
+    std::uniform_int_distribution<size_t> lightDist(0, lights.size() - 1);
+
+    // Randomly select a light
+    const Light& light = lights[lightDist(generator)];
+
+    // Assume the light is a rectangular area light for this example
+    float width = 2.0f;  // Example width
+    float height = 2.0f; // Example height
+    Vector3 lightCenter = light.position;
+    Vector3 lightNormal = {0, -1, 0}; // Example normal facing downwards
+
+    // Generate a random point on the rectangle
+    std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
+    Vector3 u = Vector3(1, 0, 0); // Assume "u" is one axis of the rectangle
+    Vector3 v = Vector3(0, 0, 1); // Assume "v" is the other axis
+    sampledPoint = lightCenter + u * (dist(generator) * width) + v * (dist(generator) * height);
+
+    // Compute PDF for sampling this point
+    float area = width * height;
+    pdf = 1.0f / area;
+
+    return light;
 }
 
 // Load scene from JSON

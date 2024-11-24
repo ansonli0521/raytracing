@@ -29,6 +29,7 @@ public:
     bool traceRay(const Ray &ray) const;
     Color traceRayWithShading(const Ray &ray, int depth = 3) const;
     Color traceRayWithBRDF(const Ray &ray, int depth = 3) const;
+    Light sampleLight(const Vector3& surfacePoint, Vector3& sampledPoint, float& pdf) const;
     void loadFromJson(const std::string &filename);
     Camera* getCamera() const { return camera; }
 
