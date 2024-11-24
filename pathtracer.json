@@ -6,8 +6,8 @@
         "fov": 70,
         "width": 800,
         "height": 600,
-        "aperture": 0.0,
-        "focus_distance": 1.0
+        "aperture": 0.5,
+        "focus_distance": 5.0
     },
     "lights": [
         {

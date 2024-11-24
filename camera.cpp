@@ -5,8 +5,8 @@
 #include <cmath>
 #include <random>
 
-Camera::Camera(Vector3 pos, Vector3 dir, Vector3 up, float fov, int w, int h)
-    : position(pos), forward(dir.normalize()), up(up.normalize()), fov(fov), width(w), height(h) {}
+Camera::Camera(Vector3 pos, Vector3 dir, Vector3 up, float fov, int w, int h, float aperture, float focusDistance)
+    : position(pos), forward(dir.normalize()), up(up.normalize()), fov(fov), width(w), height(h), aperture(aperture), focusDistance(focusDistance) {}
 
 void Camera::renderScene(const Scene& scene, const std::string& filename, const std::string& renderMode, int samplesPerPixel) const {
     std::ofstream outFile(filename);
@@ -16,22 +16,27 @@ void Camera::renderScene(const Scene& scene, const std::string& filename, const 
 
     outFile << "P3\n" << width << " " << height << "\n255\n";
 
-    // Random number generator for pixel sampling
-    std::mt19937 generator(std::random_device{}());
-    std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
+    Vector3 horizontal = right() * 2.0f * std::tan(fov / 2.0f) * focusDistance;
+    Vector3 vertical = up * 2.0f * std::tan(fov / 2.0f * height / width) * focusDistance;
+    Vector3 lowerLeftCorner = position + forward * focusDistance - horizontal / 2.0f - vertical / 2.0f;
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            Color finalColor = {0.0f, 0.0f, 0.0f};
+            Color accumulatedColor = {0.0f, 0.0f, 0.0f};
 
-            // Accumulate colors for each sample
-            for (int i = 0; i < samplesPerPixel; ++i) {
-                // Random offsets within the pixel
-                float u = (x + distribution(generator)) / (width - 1);
-                float v = (y + distribution(generator)) / (height - 1);
+            for (int sample = 0; sample < samplesPerPixel; ++sample) {
+                float u = (x + static_cast<float>(rand()) / RAND_MAX) / (width - 1);
+                float v = (y + static_cast<float>(rand()) / RAND_MAX) / (height - 1);
 
-                Vector3 rayDirection = (forward + (2.0f * u - 1.0f) * right() + (2.0f * v - 1.0f) * up).normalize();
-                Ray ray(position, rayDirection);
+                Vector3 rayDirection = lowerLeftCorner + u * horizontal + v * vertical - position;
+                rayDirection = rayDirection.normalize();
+
+                // Lens Sampling
+                Vector3 lensPoint = randomInUnitDisk() * (aperture / 2.0f);
+                Vector3 lensOffset = lensPoint.x * right() + lensPoint.y * up;
+
+                Vector3 focalPoint = position + rayDirection * focusDistance;
+                Ray ray(position + lensOffset, (focalPoint - (position + lensOffset)).normalize());
 
                 Color hdrColor;
                 if (renderMode == "binary") {
@@ -40,12 +45,11 @@ void Camera::renderScene(const Scene& scene, const std::string& filename, const 
                     hdrColor = scene.traceRayWithShading(ray);
                 }
 
-                finalColor = finalColor + hdrColor; // Accumulate the sampled color
+                accumulatedColor = accumulatedColor + hdrColor;
             }
 
-            // Average the accumulated color and apply tone mapping
-            finalColor = finalColor * (1.0f / samplesPerPixel);
-            Color mappedColor = toneMap(finalColor);
+            Color averagedColor = accumulatedColor * (1.0f / samplesPerPixel);
+            Color mappedColor = toneMap(averagedColor);
 
             outFile << static_cast<int>(std::clamp(mappedColor.r * 255.0f, 0.0f, 255.0f)) << " "
                     << static_cast<int>(std::clamp(mappedColor.g * 255.0f, 0.0f, 255.0f)) << " "
@@ -59,6 +63,19 @@ void Camera::renderScene(const Scene& scene, const std::string& filename, const 
 
 Vector3 Camera::right() const {
     return forward.cross(up).normalize();
+}
+
+Vector3 Camera::randomInUnitDisk() const {
+    std::mt19937 generator(std::random_device{}());
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+
+    while (true) {
+        float x = dist(generator);
+        float y = dist(generator);
+        if (x * x + y * y <= 1.0f) {
+            return {x, y, 0.0f};
+        }
+    }
 }
 
 Color Camera::toneMap(const Color& hdrColor) const {

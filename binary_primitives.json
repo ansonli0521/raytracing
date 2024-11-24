@@ -5,7 +5,9 @@
         "up": [0.0, 1.0, 0.0],
         "fov": 45.0,
         "width": 1200,
-        "height": 800
+        "height": 800,
+        "aperture": 0.0,
+        "focus_distance": 1.0
     },
     "lights": [],
     "objects": [

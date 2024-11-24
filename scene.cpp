@@ -152,8 +152,10 @@ void Scene::loadFromJson(const std::string &filename) {
     float fov = cameraConfig["fov"];
     int width = cameraConfig["width"];
     int height = cameraConfig["height"];
+    int aperture = cameraConfig["aperture"];
+    int focusDistance = cameraConfig["focus_distance"];
 
-    camera = new Camera(position, lookAt, up, fov, width, height);
+    camera = new Camera(position, lookAt, up, fov, width, height, aperture, focusDistance);
 
     for (const auto &object : sceneJson["objects"]) {
         std::string type = object["type"];
