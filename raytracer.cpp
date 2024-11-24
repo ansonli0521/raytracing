@@ -5,15 +5,15 @@
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: ./raytracer <render_mode> (binary or phong) <json_file_name>\n";
+        std::cerr << "Usage: ./raytracer <render_mode> (binary, phong or pathtracer) <json_file_name>\n";
         return 1;
     }
 
     std::string renderMode = argv[1];
     std::string filename = argv[2];
 
-    if (renderMode != "binary" && renderMode != "phong") {
-        std::cerr << "Invalid render mode. Use 'binary' or 'phong'.\n";
+    if (renderMode != "binary" && renderMode != "phong" && renderMode != "pathtracer") {
+        std::cerr << "Invalid render mode. Use 'binary', 'phong' or 'pathtracer'.\n";
         return 1;
     }
 
@@ -21,7 +21,11 @@ int main(int argc, char** argv) {
     scene.loadFromJson(filename);
     scene.buildBVH();
 
-    int samplesPerPixel = 100;
+    int samplesPerPixel = 1;
+    if (renderMode == "pathtracer") {
+        samplesPerPixel = 100;
+    }
+
     Camera* camera = scene.getCamera();
     if (camera) {
         camera->renderScene(scene, "output.ppm", renderMode, samplesPerPixel);

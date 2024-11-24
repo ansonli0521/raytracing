@@ -179,8 +179,7 @@ Color Scene::traceRayWithBRDF(const Ray &ray, int depth) const {
                 float lightDistance = (sampledPoint - hitPoint).length();
                 Ray shadowRay(hitPoint + normal * 1e-4, lightDir); // Offset to avoid self-intersection
 
-                Vector3 tempHitPoint;
-                if (!bvhRoot->trace(shadowRay, lightDistance, tempHitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
+                if (!bvhRoot->trace(shadowRay, lightDistance, sampledPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
                     float diff = std::max(0.0f, normal.dot(lightDir));
                     lightContribution = lightContribution + sampledLight.color * diff * sampledLight.intensity / pdf;
                 }
