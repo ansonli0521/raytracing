@@ -17,6 +17,10 @@ struct Light {
     Vector3 position;
     float intensity;
     Color color;
+    bool areaLight;
+    Vector3 normal;
+    float width, height;
+    Vector3 u, v;
 };
 
 class Scene {
@@ -24,7 +28,9 @@ public:
     void addSphere(const Vector3 &center, float radius, const Color &color, float reflectivity = 0.0f, float transparency = 0.0f, float refractiveIndex = 1.0f, Texture* texture = nullptr);
     void addTriangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2, const Color &color, float reflectivity = 0.0f, float transparency = 0.0f, float refractiveIndex = 1.0f, Texture* texture = nullptr);
     void addCylinder(const Vector3 &center, const Vector3 &axis, float radius, float height, const Color &color, float reflectivity = 0.0f, float transparency = 0.0f, float refractiveIndex = 1.0f, Texture* texture = nullptr);
-    void addLight(const Vector3 &position, float intensity, const Color &color);
+    void addLight(const Vector3 &position, float intensity, const Color &color, 
+              bool areaLight = false, const Vector3 &normal = {0, -1, 0}, 
+              float width = 0.0f, float height = 0.0f);
     void buildBVH();
     bool traceRay(const Ray &ray) const;
     Color traceRayWithShading(const Ray &ray, int depth = 3) const;

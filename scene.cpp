@@ -23,8 +23,19 @@ void Scene::addCylinder(const Vector3 &center, const Vector3 &axis, float radius
     cylinders.emplace_back(new Cylinder(center, axis, radius, height, color, reflectivity, transparency, refractiveIndex, texture));
 }
 
-void Scene::addLight(const Vector3 &position, float intensity, const Color &color) {
-    lights.push_back({position, intensity, color});
+void Scene::addLight(const Vector3 &position, float intensity, const Color &color, 
+                     bool areaLight, const Vector3 &normal, float width, float height) {
+    if (areaLight) {
+        Vector3 tangent = Vector3(1, 0, 0).cross(normal).normalize();
+        if (tangent.length() < 1e-6f) {
+            tangent = Vector3(0, 1, 0).cross(normal).normalize();
+        }
+        Vector3 bitangent = normal.cross(tangent).normalize();
+
+        lights.push_back({position, intensity, color, true, normal, width, height, tangent * width, bitangent * height});
+    } else {
+        lights.push_back({position, intensity, color, false, normal, width, height, {}, {}});
+    }
 }
 
 // Build BVH for the scene
@@ -168,10 +179,10 @@ Color Scene::traceRayWithBRDF(const Ray &ray, int depth) const {
                 float lightDistance = (sampledPoint - hitPoint).length();
                 Ray shadowRay(hitPoint + normal * 1e-4, lightDir); // Offset to avoid self-intersection
 
-                // Check if shadow ray reaches the light
-                if (!bvhRoot->trace(shadowRay, lightDistance, hitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
+                Vector3 tempHitPoint;
+                if (!bvhRoot->trace(shadowRay, lightDistance, tempHitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
                     float diff = std::max(0.0f, normal.dot(lightDir));
-                    lightContribution = lightContribution + sampledLight.color * diff / pdf;
+                    lightContribution = lightContribution + sampledLight.color * diff * sampledLight.intensity / pdf;
                 }
             }
 
@@ -249,24 +260,33 @@ Light Scene::sampleLight(const Vector3& surfacePoint, Vector3& sampledPoint, flo
 
     std::mt19937 generator(std::random_device{}());
     std::uniform_int_distribution<size_t> lightDist(0, lights.size() - 1);
-
-    // Randomly select a light
     const Light& light = lights[lightDist(generator)];
 
-    // Assume the light is a rectangular area light for this example
-    float width = 2.0f;  // Example width
-    float height = 2.0f; // Example height
-    Vector3 lightCenter = light.position;
-    Vector3 lightNormal = {0, -1, 0}; // Example normal facing downwards
+    if (!light.areaLight) {
+        // Handle point lights
+        sampledPoint = light.position;
+        pdf = 1.0f; // Point light sampling has uniform probability
+        return light;
+    }
 
-    // Generate a random point on the rectangle
+    // Handle area lights
+    if (light.width <= 0.0f || light.height <= 0.0f) {
+        throw std::runtime_error("Invalid area light dimensions!");
+    }
+
+    Vector3 u = light.u.normalize() * light.width;
+    Vector3 v = light.v.normalize() * light.height;
+
     std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
-    Vector3 u = Vector3(1, 0, 0); // Assume "u" is one axis of the rectangle
-    Vector3 v = Vector3(0, 0, 1); // Assume "v" is the other axis
-    sampledPoint = lightCenter + u * (dist(generator) * width) + v * (dist(generator) * height);
+    sampledPoint = light.position + u * dist(generator) + v * dist(generator);
 
-    // Compute PDF for sampling this point
-    float area = width * height;
+    // Ensure the sampled point is above the surface point (facing the same direction as the light normal)
+    if ((sampledPoint - surfacePoint).dot(light.normal) <= 0.0f) {
+        sampledPoint = light.position - u * dist(generator) - v * dist(generator);
+    }
+
+    // Calculate PDF for uniform sampling over the area
+    float area = light.width * light.height;
     pdf = 1.0f / area;
 
     return light;
@@ -330,9 +350,26 @@ void Scene::loadFromJson(const std::string &filename) {
     }
 
     for (const auto &light : sceneJson["lights"]) {
-        Vector3 position = {light["position"][0], light["position"][1], light["position"][2]};
-        float intensity = light["intensity"];
-        Color color = {light["color"][0], light["color"][1], light["color"][2]};
-        addLight(position, intensity, color);
+        std::string type = light.value("type", "point");
+
+        if (type == "point") {
+            Vector3 position = {light["position"][0], light["position"][1], light["position"][2]};
+            float intensity = light["intensity"];
+            Color color = {light["color"][0], light["color"][1], light["color"][2]};
+            addLight(position, intensity, color);
+        } else if (type == "area") {
+            Vector3 position = {light["position"][0], light["position"][1], light["position"][2]};
+            Vector3 normal = {light["normal"][0], light["normal"][1], light["normal"][2]};
+            float width = light["width"];
+            float height = light["height"];
+            float intensity = light["intensity"];
+            Color color = {light["color"][0], light["color"][1], light["color"][2]};
+            Vector3 u = normal.cross(Vector3(0, 0, 1)).normalize(); // Cross with an arbitrary vector
+            if (u.length() == 0) {
+                u = normal.cross(Vector3(0, 1, 0)).normalize(); // Handle edge case where normal aligns with z-axis
+            }
+            Vector3 v = normal.cross(u).normalize();
+            lights.push_back({position, intensity, color, true, normal, width, height, u, v}); // `true` for area light
+        }
     }
 }
