@@ -11,6 +11,7 @@
 #include "color.h"
 #include "texture.h"
 #include "bvhnode.h"
+#include <random>
 
 struct Light {
     Vector3 position;
@@ -27,6 +28,7 @@ public:
     void buildBVH();
     bool traceRay(const Ray &ray) const;
     Color traceRayWithShading(const Ray &ray, int depth = 3) const;
+    Color traceRayWithBRDF(const Ray &ray, int depth = 3) const;
     void loadFromJson(const std::string &filename);
     Camera* getCamera() const { return camera; }
 
@@ -37,6 +39,7 @@ private:
     std::vector<Light> lights;
     Camera* camera = nullptr;
     std::unique_ptr<BVHNode> bvhRoot = nullptr;
+    Vector3 randomHemisphereDirection(const Vector3& normal) const;
 };
 
 #endif

@@ -139,6 +139,118 @@ Color Scene::traceRayWithShading(const Ray &ray, int depth) const {
     return {0.0f, 0.0f, 0.0f}; // Background color
 }
 
+Color Scene::traceRayWithBRDF(const Ray &ray, int depth) const {
+    if (depth <= 0) {
+        return {0.0f, 0.0f, 0.0f}; // Stop recursion
+    }
+
+    float closestDistance = std::numeric_limits<float>::max();
+    Vector3 hitPoint, normal;
+    Color objectColor;
+    float reflectivity = 0.0f, transparency = 0.0f, refractiveIndex = 1.0f;
+
+    if (bvhRoot && bvhRoot->trace(ray, closestDistance, hitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
+        Color finalColor = {0.0f, 0.0f, 0.0f};
+        Vector3 viewDir = -ray.direction.normalize();
+
+        // **Light Sampling**
+        for (const auto &light : lights) {
+            Vector3 lightDir = (light.position - hitPoint).normalize();
+            Ray shadowRay(hitPoint + normal * 1e-4, lightDir); // Avoid self-intersection
+            Color lightTransmission = {1.0f, 1.0f, 1.0f};
+            float lightDistance = (light.position - hitPoint).length();
+            bool inShadow = false;
+
+            // **Shadow Handling**
+            float shadowClosest = lightDistance; // Limit shadow ray to light distance
+            while (bvhRoot->trace(shadowRay, shadowClosest, hitPoint, normal, objectColor, reflectivity, transparency, refractiveIndex)) {
+                if (transparency > 0.0f) {
+                    lightTransmission = lightTransmission * objectColor * transparency;
+                    shadowRay = Ray(hitPoint + shadowRay.direction * 1e-4, shadowRay.direction);
+                    shadowClosest = lightDistance; // Reset for subsequent intersections
+                } else {
+                    lightTransmission = {0.0f, 0.0f, 0.0f};
+                    inShadow = true;
+                    break;
+                }
+            }
+
+            // If light is not completely blocked, apply lighting contribution
+            if (!inShadow) {
+                float diff = std::max(0.0f, normal.dot(lightDir));
+                Vector3 reflectDir = (2 * normal.dot(lightDir) * normal - lightDir).normalize();
+                float spec = std::pow(std::max(0.0f, viewDir.dot(reflectDir)), 32);
+
+                Color diffuse = objectColor * diff * lightTransmission;
+                Color specular = light.color * spec * light.intensity * lightTransmission;
+
+                finalColor = finalColor + diffuse * light.intensity + specular;
+            }
+        }
+
+        // **Diffuse Reflection with BRDF Sampling**
+        Vector3 diffuseDir = randomHemisphereDirection(normal);
+        Ray diffuseRay(hitPoint + normal * 1e-4, diffuseDir);
+        Color diffuseColor = traceRayWithBRDF(diffuseRay, depth - 1) * objectColor;
+
+        // **Specular Reflection**
+        Vector3 reflectionDir = ray.direction - 2 * ray.direction.dot(normal) * normal;
+        reflectionDir = reflectionDir.normalize();
+        Ray reflectedRay(hitPoint + normal * 1e-4, reflectionDir);
+        Color specularColor = traceRayWithBRDF(reflectedRay, depth - 1) * reflectivity;
+
+        // **Refraction**
+        Color refractionColor = {0.0f, 0.0f, 0.0f};
+        if (transparency > 0.0f) {
+            float eta = 1.0f / refractiveIndex; // Assume air refractive index = 1
+            float cosTheta = -normal.dot(ray.direction);
+            float k = 1 - eta * eta * (1 - cosTheta * cosTheta);
+
+            if (k >= 0.0f) {
+                Vector3 refractionDir = eta * ray.direction + (eta * cosTheta - std::sqrt(k)) * normal;
+                refractionDir = refractionDir.normalize();
+                Ray refractedRay(hitPoint + refractionDir * 1e-4, refractionDir);
+                refractionColor = traceRayWithBRDF(refractedRay, depth - 1) * transparency;
+            }
+        }
+
+        // **Fresnel Effect**
+        float fresnel = reflectivity + (1.0f - reflectivity) * std::pow(1.0f - std::abs(normal.dot(-ray.direction)), 5);
+
+        // Combine all components: diffuse, specular, refraction, and light sampling
+        finalColor = finalColor * (1.0f - reflectivity - transparency) +
+                     diffuseColor * (1.0f - fresnel) +
+                     specularColor * fresnel +
+                     refractionColor;
+
+        return finalColor;
+    }
+
+    return {0.0f, 0.0f, 0.0f}; // Background color
+}
+
+Vector3 Scene::randomHemisphereDirection(const Vector3& normal) const {
+    std::mt19937 generator(std::random_device{}());
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+    float u = dist(generator);
+    float v = dist(generator);
+
+    float theta = std::acos(std::sqrt(1.0f - u)); // Angle from the normal
+    float phi = 2.0f * M_PI * v;                 // Full rotation around the normal
+
+    float x = std::sin(theta) * std::cos(phi);
+    float y = std::sin(theta) * std::sin(phi);
+    float z = std::cos(theta);
+
+    Vector3 randomDir = {x, y, z};
+    if (randomDir.dot(normal) < 0.0f) {
+        randomDir = -randomDir; // Ensure it's in the correct hemisphere
+    }
+
+    return randomDir;
+}
+
 // Load scene from JSON
 void Scene::loadFromJson(const std::string &filename) {
     std::ifstream file(filename);

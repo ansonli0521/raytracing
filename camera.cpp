@@ -43,6 +43,8 @@ void Camera::renderScene(const Scene& scene, const std::string& filename, const 
                     hdrColor = scene.traceRay(ray) ? Color(1, 0, 0) : Color(0, 0, 0);
                 } else if (renderMode == "phong") {
                     hdrColor = scene.traceRayWithShading(ray);
+                } else if (renderMode == "pathtracer") {
+                    hdrColor = scene.traceRayWithBRDF(ray, 5); // Depth of 5 for pathtracer
                 }
 
                 accumulatedColor = accumulatedColor + hdrColor;
