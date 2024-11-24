@@ -21,9 +21,10 @@ int main(int argc, char** argv) {
     scene.loadFromJson(filename);
     scene.buildBVH();
 
+    int samplesPerPixel = 100;
     Camera* camera = scene.getCamera();
     if (camera) {
-        camera->renderScene(scene, "output.ppm", renderMode);
+        camera->renderScene(scene, "output.ppm", renderMode, samplesPerPixel);
     }
 
     return 0;

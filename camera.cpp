@@ -3,11 +3,12 @@
 #include "color.h"
 #include <fstream>
 #include <cmath>
+#include <random>
 
 Camera::Camera(Vector3 pos, Vector3 dir, Vector3 up, float fov, int w, int h)
     : position(pos), forward(dir.normalize()), up(up.normalize()), fov(fov), width(w), height(h) {}
 
-void Camera::renderScene(const Scene& scene, const std::string& filename, const std::string& renderMode) const {
+void Camera::renderScene(const Scene& scene, const std::string& filename, const std::string& renderMode, int samplesPerPixel) const {
     std::ofstream outFile(filename);
     if (!outFile) {
         throw std::runtime_error("Failed to open file: " + filename);
@@ -15,22 +16,36 @@ void Camera::renderScene(const Scene& scene, const std::string& filename, const 
 
     outFile << "P3\n" << width << " " << height << "\n255\n";
 
+    // Random number generator for pixel sampling
+    std::mt19937 generator(std::random_device{}());
+    std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
+
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            float u = (2.0f * x / (width - 1)) - 1.0f;
-            float v = (2.0f * y / (height - 1)) - 1.0f;
+            Color finalColor = {0.0f, 0.0f, 0.0f};
 
-            Vector3 rayDirection = (forward + u * right() + v * up).normalize();
-            Ray ray(position, rayDirection);
-            
-            Color hdrColor;
-            if (renderMode == "binary") {
-                hdrColor = scene.traceRay(ray) ? Color(1, 0, 0) : Color(0, 0, 0);
-            } else if (renderMode == "phong") {
-                hdrColor = scene.traceRayWithShading(ray);
+            // Accumulate colors for each sample
+            for (int i = 0; i < samplesPerPixel; ++i) {
+                // Random offsets within the pixel
+                float u = (x + distribution(generator)) / (width - 1);
+                float v = (y + distribution(generator)) / (height - 1);
+
+                Vector3 rayDirection = (forward + (2.0f * u - 1.0f) * right() + (2.0f * v - 1.0f) * up).normalize();
+                Ray ray(position, rayDirection);
+
+                Color hdrColor;
+                if (renderMode == "binary") {
+                    hdrColor = scene.traceRay(ray) ? Color(1, 0, 0) : Color(0, 0, 0);
+                } else if (renderMode == "phong") {
+                    hdrColor = scene.traceRayWithShading(ray);
+                }
+
+                finalColor = finalColor + hdrColor; // Accumulate the sampled color
             }
 
-            Color mappedColor = toneMap(hdrColor);
+            // Average the accumulated color and apply tone mapping
+            finalColor = finalColor * (1.0f / samplesPerPixel);
+            Color mappedColor = toneMap(finalColor);
 
             outFile << static_cast<int>(std::clamp(mappedColor.r * 255.0f, 0.0f, 255.0f)) << " "
                     << static_cast<int>(std::clamp(mappedColor.g * 255.0f, 0.0f, 255.0f)) << " "
